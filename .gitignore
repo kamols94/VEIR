@@ -1,7 +1,14 @@
 .vs/
 *.VC.db
+*.VC.opendb
+
 /Debug
+/x64
+
 /DXUT/Core/Bin
+/DXUT/Optional/Bin
 /DirectXTK/Bin
+
 /VEIR/Debug
+/VEIR/x64
 

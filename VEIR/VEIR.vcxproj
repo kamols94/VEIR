@@ -128,6 +128,7 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="RobotComponent.cpp" />
+    <ClCompile Include="RobotEffectFactory.cpp" />
     <ClCompile Include="RobotObject.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -144,6 +145,7 @@
   <ItemGroup>
     <ClInclude Include="resource.h" />
     <ClInclude Include="RobotComponent.h" />
+    <ClInclude Include="RobotEffectFactory.h" />
     <ClInclude Include="RobotObject.h" />
   </ItemGroup>
   <ItemGroup>

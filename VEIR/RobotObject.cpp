@@ -4,9 +4,11 @@
 
 RobotObject::RobotObject()
 {
+
 }
 
 
 RobotObject::~RobotObject()
 {
+
 }

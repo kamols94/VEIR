@@ -15,15 +15,26 @@
 #include "CommonStates.h"
 #include "Model.h"
 
-
 #pragma warning( disable : 4100 )
 
 using namespace DirectX;
+//--------------------------------------------------------------------------------------
+// UI control IDs
+//--------------------------------------------------------------------------------------
+#define IDC_JOINT1_INC			1
+#define IDC_JOINT1_DEC          2
+#define IDC_JOINT2_INC			3
+#define IDC_JOINT2_DEC          4
+
 
 //--------------------------------------------------------------------------------------
 // Global variables
 //--------------------------------------------------------------------------------------
-CModelViewerCamera          g_Camera;
+CModelViewerCamera										g_Camera;
+
+CDXUTDialogResourceManager								g_DialogResourceManager;
+CD3DSettingsDlg											g_SettingsDlg;
+CDXUTDialog												g_Dialog;
 
 ID3D11InputLayout*										g_pBatchInputLayout = nullptr;
 
@@ -32,6 +43,8 @@ std::unique_ptr<PrimitiveBatch<VertexPositionColor>>    g_Batch;
 std::unique_ptr<RobotEffectFactory>						g_FXFactory;
 std::unique_ptr<CommonStates>							g_States;
 std::unique_ptr<Model>                                  g_Model;
+std::unique_ptr<Model>                                  g_Model2;
+std::unique_ptr<Model>                                  g_Model3;
 
 //--------------------------------------------------------------------------------------
 // Forward declarations 
@@ -68,6 +81,8 @@ HRESULT CALLBACK OnD3D11CreateDevice(ID3D11Device* pd3dDevice, const DXGI_SURFAC
 	HRESULT hr;
 
 	auto pd3dImmediateContext = DXUTGetD3D11DeviceContext();
+	V_RETURN(g_DialogResourceManager.OnD3D11CreateDevice(pd3dDevice, pd3dImmediateContext));
+	V_RETURN(g_SettingsDlg.OnD3D11CreateDevice(pd3dDevice));
 
 	// Create other render resources here
 	g_States.reset(new CommonStates(pd3dDevice));
@@ -91,6 +106,12 @@ HRESULT CALLBACK OnD3D11CreateDevice(ID3D11Device* pd3dDevice, const DXGI_SURFAC
 			return hr;
 	}
 
+	WCHAR str[MAX_PATH];
+	V_RETURN(DXUTFindDXSDKMediaFileCch(str, MAX_PATH, L"Models3D\\Mitsubishi.sdkmesh"));
+	g_FXFactory->SetPath(L"Models3D\\");
+	g_Model = Model::CreateFromSDKMESH(pd3dDevice, str, *g_FXFactory, true);
+
+
 	// Setup the camera's view parameters
 	static const XMVECTORF32 s_vecEye = { 0.0f, 3.0f, -6.0f, 0.f };
 	g_Camera.SetViewParams(s_vecEye, g_XMZero);
@@ -105,11 +126,18 @@ HRESULT CALLBACK OnD3D11CreateDevice(ID3D11Device* pd3dDevice, const DXGI_SURFAC
 HRESULT CALLBACK OnD3D11ResizedSwapChain(ID3D11Device* pd3dDevice, IDXGISwapChain* pSwapChain,
 	const DXGI_SURFACE_DESC* pBackBufferSurfaceDesc, void* pUserContext)
 {
+	HRESULT hr;
+	V_RETURN(g_DialogResourceManager.OnD3D11ResizedSwapChain(pd3dDevice, pBackBufferSurfaceDesc));
+	V_RETURN(g_SettingsDlg.OnD3D11ResizedSwapChain(pd3dDevice, pBackBufferSurfaceDesc));
+
 	// Setup the camera's projection parameters
 	float fAspectRatio = pBackBufferSurfaceDesc->Width / (FLOAT)pBackBufferSurfaceDesc->Height;
 	g_Camera.SetProjParams(XM_PI / 4, fAspectRatio, 0.1f, 1000.0f);
 	g_Camera.SetWindow(pBackBufferSurfaceDesc->Width, pBackBufferSurfaceDesc->Height);
-	g_Camera.SetButtonMasks(MOUSE_LEFT_BUTTON, MOUSE_WHEEL, MOUSE_MIDDLE_BUTTON);
+	g_Camera.SetButtonMasks(0x00, MOUSE_WHEEL, MOUSE_LEFT_BUTTON);
+
+	g_Dialog.SetLocation(30, pBackBufferSurfaceDesc->Height - 100);
+	g_Dialog.SetSize(80, 80);
 
 	return S_OK;
 }
@@ -151,6 +179,21 @@ void CALLBACK OnD3D11FrameRender(ID3D11Device* pd3dDevice, ID3D11DeviceContext* 
 	const XMVECTORF32 yaxis = { 0.f, 0.f, 20.f };
 	DrawGrid(xaxis, yaxis, g_XMZero, 20, 20, Colors::Gray);
 
+	// Draw 3D object
+
+	XMMATRIX local = XMMatrixMultiply(mWorld, XMMatrixTranslation(-2.f, -2.f, 4.f));
+
+	XMVECTOR qid = XMQuaternionIdentity();
+	const XMVECTORF32 scale = { 0.01f, 0.01f, 0.01f };
+	const XMVECTORF32 translate = { 3.f, -2.f, 4.f };
+	XMVECTOR rotate = XMQuaternionRotationRollPitchYaw(0, XM_PI / 2.f, XM_PI / 2.f);
+	local = XMMatrixMultiply(mWorld, XMMatrixTransformation(g_XMZero, qid, scale, g_XMZero, rotate, translate));
+	g_Model->Draw(pd3dImmediateContext, *g_States, local, mView, mProj);
+
+	// Render GUI
+	DXUT_BeginPerfEvent(DXUT_PERFEVENTCOLOR, L"BUTTONS");
+	g_Dialog.OnRender(fElapsedTime);
+	DXUT_EndPerfEvent();
 }
 
 
@@ -159,6 +202,7 @@ void CALLBACK OnD3D11FrameRender(ID3D11Device* pd3dDevice, ID3D11DeviceContext* 
 //--------------------------------------------------------------------------------------
 void CALLBACK OnD3D11ReleasingSwapChain(void* pUserContext)
 {
+	g_DialogResourceManager.OnD3D11ReleasingSwapChain();
 }
 
 
@@ -167,12 +211,16 @@ void CALLBACK OnD3D11ReleasingSwapChain(void* pUserContext)
 //--------------------------------------------------------------------------------------
 void CALLBACK OnD3D11DestroyDevice(void* pUserContext)
 {
+	g_DialogResourceManager.OnD3D11DestroyDevice();
+	g_SettingsDlg.OnD3D11DestroyDevice();
+
 	DXUTGetGlobalResourceCache().OnDestroyDevice();
 
 	g_States.reset();
 	g_BatchEffect.reset();
 	g_FXFactory.reset();
 	g_Batch.reset();
+	g_Model.reset();
 
 	SAFE_RELEASE(g_pBatchInputLayout);
 }
@@ -184,6 +232,23 @@ void CALLBACK OnD3D11DestroyDevice(void* pUserContext)
 LRESULT CALLBACK MsgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
 	bool* pbNoFurtherProcessing, void* pUserContext)
 {
+	// Pass messages to dialog resource manager calls so GUI state is updated correctly
+	*pbNoFurtherProcessing = g_DialogResourceManager.MsgProc(hWnd, uMsg, wParam, lParam);
+	if (*pbNoFurtherProcessing)
+		return 0;
+
+	// Pass messages to settings dialog if its active
+	if (g_SettingsDlg.IsActive())
+	{
+		g_SettingsDlg.MsgProc(hWnd, uMsg, wParam, lParam);
+		return 0;
+	}
+
+	// Give the dialogs a chance to handle the message first
+	*pbNoFurtherProcessing = g_Dialog.MsgProc(hWnd, uMsg, wParam, lParam);
+	if (*pbNoFurtherProcessing)
+		return 0;
+
 	// Pass all remaining windows messages to camera so it can respond to user input
 	g_Camera.HandleMessages(hWnd, uMsg, wParam, lParam);
 	return 0;
@@ -216,6 +281,27 @@ bool CALLBACK OnDeviceRemoved(void* pUserContext)
 	return true;
 }
 
+//--------------------------------------------------------------------------------------
+// Handles the GUI events
+//--------------------------------------------------------------------------------------
+void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, void* pUserContext)
+{
+	switch (nControlID)
+	{
+	case IDC_JOINT1_INC:
+		DXUTToggleFullScreen();
+		break;
+	case IDC_JOINT1_DEC:
+		DXUTToggleFullScreen();
+		break;
+	case IDC_JOINT2_INC:
+		DXUTToggleFullScreen();
+		break;
+	case IDC_JOINT2_DEC:
+		DXUTToggleFullScreen();
+		break;
+	}
+}
 
 //--------------------------------------------------------------------------------------
 // Initialize everything and go into a render loop
@@ -248,6 +334,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 
 	// Perform any application-level initialization here
 
+	InitApp();
 	DXUTInit(true, true, nullptr); // Parse the command line, show msgboxes on error, no extra command line params
 	DXUTSetCursorSettings(true, true); // Show the cursor and clip it when in full screen
 	DXUTCreateWindow(L"The Virtual Environment of Industrial Robots");
@@ -264,6 +351,26 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 
 void InitApp()
 {
+	g_SettingsDlg.Init(&g_DialogResourceManager);
+	g_Dialog.Init(&g_DialogResourceManager);
+	g_Dialog.SetCallback(OnGUIEvent);
+
+	int ButtonX = 30;
+	int ButtonY = 30;
+	int iX0 = 0;
+	int iY0 = 0;
+	int idX = 40;
+	int idY = 40;
+
+	g_Dialog.AddButton(IDC_JOINT1_INC, L"J1[+]", iX0, iY0, ButtonX, ButtonY);
+	g_Dialog.AddButton(IDC_JOINT2_INC, L"J2[+]", iX0 += idX, iY0, ButtonX, ButtonY);
+
+	iX0 = 0;
+	iY0 += idY;
+
+	g_Dialog.AddButton(IDC_JOINT1_DEC, L"J1[-]", iX0, iY0, ButtonX, ButtonY);
+	g_Dialog.AddButton(IDC_JOINT2_DEC, L"J2[-]", iX0 += idX, iY0, ButtonX, ButtonY);
+
 
 }
 

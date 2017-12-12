@@ -8,6 +8,14 @@ RobotEffectFactory::RobotEffectFactory(_In_ ID3D11Device* device) : EffectFactor
 
 void RobotEffectFactory::SetPath(const WCHAR * path)
 {
+	if (path)
+	{
+		wcscpy_s(searchPath, path);
+	}
+	else
+	{
+		*searchPath = 0;
+	}
 }
 
 void RobotEffectFactory::CreateTexture(const WCHAR * name, ID3D11DeviceContext * deviceContext, ID3D11ShaderResourceView ** textureView)

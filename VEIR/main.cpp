@@ -30,6 +30,14 @@ using namespace DirectX;
 //--------------------------------------------------------------------------------------
 // Global variables
 //--------------------------------------------------------------------------------------
+RobotLeaf Leaf_0[7];
+RobotComposite Joint_0[7];
+
+RobotLeaf Leaf_1[14];
+RobotComposite Joint_1[7];
+
+
+
 CModelViewerCamera										g_Camera;
 
 CDXUTDialogResourceManager								g_DialogResourceManager;
@@ -43,12 +51,15 @@ std::unique_ptr<PrimitiveBatch<VertexPositionColor>>    g_Batch;
 std::unique_ptr<RobotEffectFactory>						g_FXFactory;
 std::unique_ptr<CommonStates>							g_States;
 std::unique_ptr<Model>                                  g_Model;
-std::unique_ptr<Model>                                  g_Model2;
-std::unique_ptr<Model>                                  g_Model3;
+float g_a = 0.0f;
+float g_b = 0.0f;
+
+
 
 //--------------------------------------------------------------------------------------
 // Forward declarations 
 //--------------------------------------------------------------------------------------
+void InitRobotTrees();
 void InitApp();
 void DrawGrid(FXMVECTOR xAxis, FXMVECTOR yAxis, FXMVECTOR origin, size_t xdivs, size_t ydivs, GXMVECTOR color);
 
@@ -106,11 +117,76 @@ HRESULT CALLBACK OnD3D11CreateDevice(ID3D11Device* pd3dDevice, const DXGI_SURFAC
 			return hr;
 	}
 
-	WCHAR str[MAX_PATH];
-	V_RETURN(DXUTFindDXSDKMediaFileCch(str, MAX_PATH, L"Models3D\\Mitsubishi.sdkmesh"));
-	g_FXFactory->SetPath(L"Models3D\\");
-	g_Model = Model::CreateFromSDKMESH(pd3dDevice, str, *g_FXFactory, true);
+	
 
+	WCHAR str[MAX_PATH];
+	g_FXFactory->SetPath(L"Models3D\\");
+	V_RETURN(DXUTFindDXSDKMediaFileCch(str, MAX_PATH, L"Models3D\\fs000.sdkmesh"));
+	g_Model = Model::CreateFromSDKMESH(pd3dDevice, str, *g_FXFactory, true);
+	Leaf_0[0].SetModel(move(g_Model));
+	V_RETURN(DXUTFindDXSDKMediaFileCch(str, MAX_PATH, L"Models3D\\fs001.sdkmesh"));
+	g_Model = Model::CreateFromSDKMESH(pd3dDevice, str, *g_FXFactory, true);
+	Leaf_0[1].SetModel(move(g_Model));
+	V_RETURN(DXUTFindDXSDKMediaFileCch(str, MAX_PATH, L"Models3D\\fs002.sdkmesh"));
+	g_Model = Model::CreateFromSDKMESH(pd3dDevice, str, *g_FXFactory, true);
+	Leaf_0[2].SetModel(move(g_Model));
+	V_RETURN(DXUTFindDXSDKMediaFileCch(str, MAX_PATH, L"Models3D\\fs003.sdkmesh"));
+	g_Model = Model::CreateFromSDKMESH(pd3dDevice, str, *g_FXFactory, true);
+	Leaf_0[3].SetModel(move(g_Model));
+	V_RETURN(DXUTFindDXSDKMediaFileCch(str, MAX_PATH, L"Models3D\\fs004.sdkmesh"));
+	g_Model = Model::CreateFromSDKMESH(pd3dDevice, str, *g_FXFactory, true);
+	Leaf_0[4].SetModel(move(g_Model));
+	V_RETURN(DXUTFindDXSDKMediaFileCch(str, MAX_PATH, L"Models3D\\fs005.sdkmesh"));
+	g_Model = Model::CreateFromSDKMESH(pd3dDevice, str, *g_FXFactory, true);
+	Leaf_0[5].SetModel(move(g_Model));
+	V_RETURN(DXUTFindDXSDKMediaFileCch(str, MAX_PATH, L"Models3D\\fs006.sdkmesh"));
+	g_Model = Model::CreateFromSDKMESH(pd3dDevice, str, *g_FXFactory, true);
+	Leaf_0[6].SetModel(move(g_Model));
+
+	V_RETURN(DXUTFindDXSDKMediaFileCch(str, MAX_PATH, L"Models3D\\rv001.sdkmesh"));
+	g_Model = Model::CreateFromSDKMESH(pd3dDevice, str, *g_FXFactory, true);
+	Leaf_1[0].SetModel(move(g_Model));
+	V_RETURN(DXUTFindDXSDKMediaFileCch(str, MAX_PATH, L"Models3D\\rv002.sdkmesh"));
+	g_Model = Model::CreateFromSDKMESH(pd3dDevice, str, *g_FXFactory, true);
+	Leaf_1[1].SetModel(move(g_Model));
+	V_RETURN(DXUTFindDXSDKMediaFileCch(str, MAX_PATH, L"Models3D\\rv003.sdkmesh"));
+	g_Model = Model::CreateFromSDKMESH(pd3dDevice, str, *g_FXFactory, true);
+	Leaf_1[2].SetModel(move(g_Model));
+	V_RETURN(DXUTFindDXSDKMediaFileCch(str, MAX_PATH, L"Models3D\\rv004.sdkmesh"));
+	g_Model = Model::CreateFromSDKMESH(pd3dDevice, str, *g_FXFactory, true);
+	Leaf_1[3].SetModel(move(g_Model));
+	V_RETURN(DXUTFindDXSDKMediaFileCch(str, MAX_PATH, L"Models3D\\rv005.sdkmesh"));
+	g_Model = Model::CreateFromSDKMESH(pd3dDevice, str, *g_FXFactory, true);
+	Leaf_1[4].SetModel(move(g_Model));
+	V_RETURN(DXUTFindDXSDKMediaFileCch(str, MAX_PATH, L"Models3D\\rv006.sdkmesh"));
+	g_Model = Model::CreateFromSDKMESH(pd3dDevice, str, *g_FXFactory, true);
+	Leaf_1[5].SetModel(move(g_Model));
+	V_RETURN(DXUTFindDXSDKMediaFileCch(str, MAX_PATH, L"Models3D\\rv007.sdkmesh"));
+	g_Model = Model::CreateFromSDKMESH(pd3dDevice, str, *g_FXFactory, true);
+	Leaf_1[6].SetModel(move(g_Model));
+	V_RETURN(DXUTFindDXSDKMediaFileCch(str, MAX_PATH, L"Models3D\\rv008.sdkmesh"));
+	g_Model = Model::CreateFromSDKMESH(pd3dDevice, str, *g_FXFactory, true);
+	Leaf_1[7].SetModel(move(g_Model));
+	V_RETURN(DXUTFindDXSDKMediaFileCch(str, MAX_PATH, L"Models3D\\rv009.sdkmesh"));
+	g_Model = Model::CreateFromSDKMESH(pd3dDevice, str, *g_FXFactory, true);
+	Leaf_1[8].SetModel(move(g_Model));
+	V_RETURN(DXUTFindDXSDKMediaFileCch(str, MAX_PATH, L"Models3D\\rv010.sdkmesh"));
+	g_Model = Model::CreateFromSDKMESH(pd3dDevice, str, *g_FXFactory, true);
+	Leaf_1[9].SetModel(move(g_Model));
+	V_RETURN(DXUTFindDXSDKMediaFileCch(str, MAX_PATH, L"Models3D\\rv011.sdkmesh"));
+	g_Model = Model::CreateFromSDKMESH(pd3dDevice, str, *g_FXFactory, true);
+	Leaf_1[10].SetModel(move(g_Model));
+	V_RETURN(DXUTFindDXSDKMediaFileCch(str, MAX_PATH, L"Models3D\\rv012.sdkmesh"));
+	g_Model = Model::CreateFromSDKMESH(pd3dDevice, str, *g_FXFactory, true);
+	Leaf_1[11].SetModel(move(g_Model));
+	V_RETURN(DXUTFindDXSDKMediaFileCch(str, MAX_PATH, L"Models3D\\rv013.sdkmesh"));
+	g_Model = Model::CreateFromSDKMESH(pd3dDevice, str, *g_FXFactory, true);
+	Leaf_1[12].SetModel(move(g_Model));
+	V_RETURN(DXUTFindDXSDKMediaFileCch(str, MAX_PATH, L"Models3D\\rv014.sdkmesh"));
+	g_Model = Model::CreateFromSDKMESH(pd3dDevice, str, *g_FXFactory, true);
+	Leaf_1[13].SetModel(move(g_Model));
+
+	InitRobotTrees();
 
 	// Setup the camera's view parameters
 	static const XMVECTORF32 s_vecEye = { 0.0f, 3.0f, -6.0f, 0.f };
@@ -176,20 +252,30 @@ void CALLBACK OnD3D11FrameRender(ID3D11Device* pd3dDevice, ID3D11DeviceContext* 
 
 	// Draw procedurally generated dynamic grid
 	const XMVECTORF32 xaxis = { 20.f, 0.f, 0.f };
-	const XMVECTORF32 yaxis = { 0.f, 0.f, 20.f };
+	const XMVECTORF32 yaxis = { 0.f, 20.f, 0.f };
 	DrawGrid(xaxis, yaxis, g_XMZero, 20, 20, Colors::Gray);
 
 	// Draw 3D object
+	XMMATRIX scale1 = XMMatrixScaling(0.01f, 0.01f, 0.01f);
+	XMMATRIX translate1 = XMMatrixTranslation(g_a, 0.0f, 0.0f);
+	XMMATRIX translate2	= XMMatrixTranslation(0.0f, 0.0f, g_b);
+	XMMATRIX transform1 = XMMatrixMultiply(scale1, translate1);
+	XMMATRIX transform2 = XMMatrixMultiply(scale1, translate2);
+	XMMATRIX transformnone = XMMatrixIdentity();
 
-	XMMATRIX local = XMMatrixMultiply(mWorld, XMMatrixTranslation(-2.f, -2.f, 4.f));
 
-	XMVECTOR qid = XMQuaternionIdentity();
-	const XMVECTORF32 scale = { 0.01f, 0.01f, 0.01f };
-	const XMVECTORF32 translate = { 3.f, -2.f, 4.f };
-	XMVECTOR rotate = XMQuaternionRotationRollPitchYaw(0, XM_PI / 2.f, XM_PI / 2.f);
-	local = XMMatrixMultiply(mWorld, XMMatrixTransformation(g_XMZero, qid, scale, g_XMZero, rotate, translate));
-	g_Model->Draw(pd3dImmediateContext, *g_States, local, mView, mProj);
+	XMMATRIX local = XMMatrixMultiply(mWorld, transform1);
+	XMMATRIX local1 = XMMatrixMultiply(local, translate2);
+	XMMATRIX local2 = XMMatrixMultiply(local1, transformnone);
+	XMMATRIX local3 = XMMatrixMultiply(local2, transformnone);
+	XMMATRIX local4 = XMMatrixMultiply(local3, transformnone);
+	XMMATRIX local5 = XMMatrixMultiply(local4, transformnone);
+	XMMATRIX local6 = XMMatrixMultiply(local5, transformnone);
 
+	
+	Joint_0[0].Render(pd3dImmediateContext, *g_States, local, mView, mProj);
+	Joint_1[0].Render(pd3dImmediateContext, *g_States, local2, mView, mProj);
+	
 	// Render GUI
 	DXUT_BeginPerfEvent(DXUT_PERFEVENTCOLOR, L"BUTTONS");
 	g_Dialog.OnRender(fElapsedTime);
@@ -220,7 +306,30 @@ void CALLBACK OnD3D11DestroyDevice(void* pUserContext)
 	g_BatchEffect.reset();
 	g_FXFactory.reset();
 	g_Batch.reset();
-	g_Model.reset();
+
+	Leaf_0[0].ReleaseModel();
+	Leaf_0[1].ReleaseModel();
+	Leaf_0[2].ReleaseModel();
+	Leaf_0[3].ReleaseModel();
+	Leaf_0[4].ReleaseModel();
+	Leaf_0[5].ReleaseModel();
+	Leaf_0[6].ReleaseModel();
+
+	Leaf_1[0].ReleaseModel();
+	Leaf_1[1].ReleaseModel();
+	Leaf_1[2].ReleaseModel();
+	Leaf_1[3].ReleaseModel();
+	Leaf_1[4].ReleaseModel();
+	Leaf_1[5].ReleaseModel();
+	Leaf_1[6].ReleaseModel();
+	Leaf_1[7].ReleaseModel();
+	Leaf_1[8].ReleaseModel();
+	Leaf_1[9].ReleaseModel();
+	Leaf_1[10].ReleaseModel();
+	Leaf_1[11].ReleaseModel();
+	Leaf_1[12].ReleaseModel();
+	Leaf_1[13].ReleaseModel();
+
 
 	SAFE_RELEASE(g_pBatchInputLayout);
 }
@@ -289,16 +398,16 @@ void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, vo
 	switch (nControlID)
 	{
 	case IDC_JOINT1_INC:
-		DXUTToggleFullScreen();
+		g_a += 1.0f;
 		break;
 	case IDC_JOINT1_DEC:
-		DXUTToggleFullScreen();
+		g_a -= 1.0f;
 		break;
 	case IDC_JOINT2_INC:
-		DXUTToggleFullScreen();
+		g_b += 1.0f;
 		break;
 	case IDC_JOINT2_DEC:
-		DXUTToggleFullScreen();
+		g_b -= 1.0f;
 		break;
 	}
 }
@@ -413,3 +522,42 @@ void DrawGrid(FXMVECTOR xAxis, FXMVECTOR yAxis, FXMVECTOR origin, size_t xdivs, 
 	g_Batch->End();
 }
 
+void InitRobotTrees()
+{
+	Joint_0[0].addComposite(Joint_0[1]);
+	Joint_0[1].addComposite(Joint_0[2]);
+	Joint_0[2].addComposite(Joint_0[3]);
+	Joint_0[3].addComposite(Joint_0[4]);
+	Joint_0[4].addComposite(Joint_0[5]);
+	Joint_0[5].addComposite(Joint_0[6]);
+
+	Joint_0[0].addLeaf(Leaf_0[0]);
+	Joint_0[1].addLeaf(Leaf_0[1]);
+	Joint_0[2].addLeaf(Leaf_0[2]);
+	Joint_0[3].addLeaf(Leaf_0[3]);
+	Joint_0[4].addLeaf(Leaf_0[4]);
+	Joint_0[5].addLeaf(Leaf_0[5]);
+	Joint_0[6].addLeaf(Leaf_0[6]);
+
+	Joint_1[0].addComposite(Joint_1[1]);
+	Joint_1[1].addComposite(Joint_1[2]);
+	Joint_1[2].addComposite(Joint_1[3]);
+	Joint_1[3].addComposite(Joint_1[4]);
+	Joint_1[4].addComposite(Joint_1[5]);
+	Joint_1[5].addComposite(Joint_1[6]);
+
+	Joint_1[0].addLeaf(Leaf_1[0]);
+	Joint_1[1].addLeaf(Leaf_1[1]);
+	Joint_1[2].addLeaf(Leaf_1[2]);
+	Joint_1[2].addLeaf(Leaf_1[3]);
+	Joint_1[3].addLeaf(Leaf_1[4]);
+	Joint_1[3].addLeaf(Leaf_1[5]);
+	Joint_1[3].addLeaf(Leaf_1[6]);
+	Joint_1[3].addLeaf(Leaf_1[13]);
+	Joint_1[4].addLeaf(Leaf_1[7]);
+	Joint_1[4].addLeaf(Leaf_1[8]);
+	Joint_1[4].addLeaf(Leaf_1[9]);
+	Joint_1[5].addLeaf(Leaf_1[10]);
+	Joint_1[5].addLeaf(Leaf_1[12]);
+	Joint_1[6].addLeaf(Leaf_1[11]);
+}

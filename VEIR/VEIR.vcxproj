@@ -129,7 +129,6 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="RobotComponent.cpp" />
     <ClCompile Include="RobotEffectFactory.cpp" />
-    <ClCompile Include="RobotObject.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DirectXTK\DirectXTK_Desktop_2015.vcxproj">
@@ -146,7 +145,6 @@
     <ClInclude Include="resource.h" />
     <ClInclude Include="RobotComponent.h" />
     <ClInclude Include="RobotEffectFactory.h" />
-    <ClInclude Include="RobotObject.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="VEIR.rc" />

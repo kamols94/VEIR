@@ -7,6 +7,7 @@
 #include "RobotEffectFactory.h"
 #include "RobotComponent.h"
 
+
 #include "DXUT.h"
 #include "DXUTCamera.h"
 #include "PrimitiveBatch.h"
@@ -21,11 +22,29 @@ using namespace DirectX;
 //--------------------------------------------------------------------------------------
 // UI control IDs
 //--------------------------------------------------------------------------------------
-#define IDC_JOINT1_INC			1
-#define IDC_JOINT1_DEC          2
-#define IDC_JOINT2_INC			3
-#define IDC_JOINT2_DEC          4
+#define IDC_X_INC_R0			1
+#define IDC_X_DEC_R0			2
+#define IDC_Y_INC_R0			3
+#define IDC_Y_DEC_R0			4
 
+#define IDC_X_INC_R1			5
+#define IDC_X_DEC_R1			6
+#define IDC_Y_INC_R1			7
+#define IDC_Y_DEC_R1			8
+
+#define IDC_SLIDER_R0J1			11
+#define IDC_SLIDER_R0J2			12
+#define IDC_SLIDER_R0J3			13
+#define IDC_SLIDER_R0J4			14
+#define IDC_SLIDER_R0J5			15
+#define IDC_SLIDER_R0J6			16
+
+#define IDC_SLIDER_R1J1			21
+#define IDC_SLIDER_R1J2			22
+#define IDC_SLIDER_R1J3			23
+#define IDC_SLIDER_R1J4			24
+#define IDC_SLIDER_R1J5			25
+#define IDC_SLIDER_R1J6			26
 
 //--------------------------------------------------------------------------------------
 // Global variables
@@ -37,12 +56,12 @@ RobotLeaf Leaf_1[14];
 RobotComposite Joint_1[7];
 
 
-
 CModelViewerCamera										g_Camera;
 
 CDXUTDialogResourceManager								g_DialogResourceManager;
 CD3DSettingsDlg											g_SettingsDlg;
 CDXUTDialog												g_Dialog;
+CDXUTDialog												g_Dialog2;
 
 ID3D11InputLayout*										g_pBatchInputLayout = nullptr;
 
@@ -61,6 +80,7 @@ float g_b = 0.0f;
 //--------------------------------------------------------------------------------------
 void InitRobotTrees();
 void InitApp();
+void SetOrigins();
 void DrawGrid(FXMVECTOR xAxis, FXMVECTOR yAxis, FXMVECTOR origin, size_t xdivs, size_t ydivs, GXMVECTOR color);
 
 //--------------------------------------------------------------------------------------
@@ -187,6 +207,7 @@ HRESULT CALLBACK OnD3D11CreateDevice(ID3D11Device* pd3dDevice, const DXGI_SURFAC
 	Leaf_1[13].SetModel(move(g_Model));
 
 	InitRobotTrees();
+	SetOrigins();
 
 	// Setup the camera's view parameters
 	static const XMVECTORF32 s_vecEye = { 0.0f, 3.0f, -6.0f, 0.f };
@@ -212,8 +233,11 @@ HRESULT CALLBACK OnD3D11ResizedSwapChain(ID3D11Device* pd3dDevice, IDXGISwapChai
 	g_Camera.SetWindow(pBackBufferSurfaceDesc->Width, pBackBufferSurfaceDesc->Height);
 	g_Camera.SetButtonMasks(0x00, MOUSE_WHEEL, MOUSE_LEFT_BUTTON);
 
-	g_Dialog.SetLocation(30, pBackBufferSurfaceDesc->Height - 100);
-	g_Dialog.SetSize(80, 80);
+	g_Dialog.SetLocation(15, 15);
+	g_Dialog.SetSize(150, 300);
+
+	g_Dialog2.SetLocation(pBackBufferSurfaceDesc->Width-165, 15);
+	g_Dialog2.SetSize(150, 300);
 
 	return S_OK;
 }
@@ -256,29 +280,23 @@ void CALLBACK OnD3D11FrameRender(ID3D11Device* pd3dDevice, ID3D11DeviceContext* 
 	DrawGrid(xaxis, yaxis, g_XMZero, 20, 20, Colors::Gray);
 
 	// Draw 3D object
-	XMMATRIX scale1 = XMMatrixScaling(0.01f, 0.01f, 0.01f);
-	XMMATRIX translate1 = XMMatrixTranslation(g_a, 0.0f, 0.0f);
-	XMMATRIX translate2	= XMMatrixTranslation(0.0f, 0.0f, g_b);
-	XMMATRIX transform1 = XMMatrixMultiply(scale1, translate1);
-	XMMATRIX transform2 = XMMatrixMultiply(scale1, translate2);
-	XMMATRIX transformnone = XMMatrixIdentity();
+	XMMATRIX scale = XMMatrixScaling(0.01f, 0.01f, 0.01f);
 
+	XMMATRIX world_0 = XMMatrixMultiply(mWorld, scale);
+	XMMATRIX world_1 = XMMatrixMultiply(mWorld, scale);
+	Joint_0[0].SetParentOrigin(world_0);
+	Joint_1[0].SetParentOrigin(world_1);
 
-	XMMATRIX local = XMMatrixMultiply(mWorld, transform1);
-	XMMATRIX local1 = XMMatrixMultiply(local, translate2);
-	XMMATRIX local2 = XMMatrixMultiply(local1, transformnone);
-	XMMATRIX local3 = XMMatrixMultiply(local2, transformnone);
-	XMMATRIX local4 = XMMatrixMultiply(local3, transformnone);
-	XMMATRIX local5 = XMMatrixMultiply(local4, transformnone);
-	XMMATRIX local6 = XMMatrixMultiply(local5, transformnone);
+	Joint_0[0].Transform();
+	Joint_1[0].Transform();
 
-	
-	Joint_0[0].Render(pd3dImmediateContext, *g_States, local, mView, mProj);
-	Joint_1[0].Render(pd3dImmediateContext, *g_States, local2, mView, mProj);
+	Joint_0[0].Render(pd3dImmediateContext, *g_States, mView, mProj);
+	Joint_1[0].Render(pd3dImmediateContext, *g_States, mView, mProj);
 	
 	// Render GUI
 	DXUT_BeginPerfEvent(DXUT_PERFEVENTCOLOR, L"BUTTONS");
 	g_Dialog.OnRender(fElapsedTime);
+	g_Dialog2.OnRender(fElapsedTime);
 	DXUT_EndPerfEvent();
 }
 
@@ -358,6 +376,10 @@ LRESULT CALLBACK MsgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
 	if (*pbNoFurtherProcessing)
 		return 0;
 
+	*pbNoFurtherProcessing = g_Dialog2.MsgProc(hWnd, uMsg, wParam, lParam);
+	if (*pbNoFurtherProcessing)
+		return 0;
+
 	// Pass all remaining windows messages to camera so it can respond to user input
 	g_Camera.HandleMessages(hWnd, uMsg, wParam, lParam);
 	return 0;
@@ -397,18 +419,72 @@ void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, vo
 {
 	switch (nControlID)
 	{
-	case IDC_JOINT1_INC:
-		g_a += 1.0f;
+	case IDC_X_INC_R0:
+		Joint_0[0].SetX(Joint_0[0].GetTranslationX()+250.f);
 		break;
-	case IDC_JOINT1_DEC:
-		g_a -= 1.0f;
+	case IDC_X_DEC_R0:
+		Joint_0[0].SetTranslationX(Joint_0[0].GetTranslationX() - 250.f);
 		break;
-	case IDC_JOINT2_INC:
-		g_b += 1.0f;
+	case IDC_Y_INC_R0:
+		Joint_0[0].SetTranslationY(Joint_0[0].GetTranslationY() + 250.f);
 		break;
-	case IDC_JOINT2_DEC:
-		g_b -= 1.0f;
+	case IDC_Y_DEC_R0:
+		Joint_0[0].SetTranslationY(Joint_0[0].GetTranslationY() - 250.f);
 		break;
+	case IDC_X_INC_R1:
+		Joint_1[0].SetTranslationX(Joint_1[0].GetTranslationX() + 250.f);
+		break;
+	case IDC_X_DEC_R1:
+		Joint_1[0].SetTranslationX(Joint_1[0].GetTranslationX() - 250.f);
+		break;
+	case IDC_Y_INC_R1:
+		Joint_1[0].SetTranslationY(Joint_1[0].GetTranslationY() + 250.f);
+		break;
+	case IDC_Y_DEC_R1:
+		Joint_1[0].SetTranslationY(Joint_1[0].GetTranslationY() - 250.f);
+		break;
+
+
+	case IDC_SLIDER_R0J1:
+		Joint_0[1].SetRotationZ(float(g_Dialog.GetSlider(IDC_SLIDER_R0J1)->GetValue()));
+		break;
+	case IDC_SLIDER_R0J2:
+		Joint_0[2].SetRotationX(float(g_Dialog.GetSlider(IDC_SLIDER_R0J2)->GetValue()));
+		break;
+	case IDC_SLIDER_R0J3:
+		Joint_0[3].SetRotationX(float(g_Dialog.GetSlider(IDC_SLIDER_R0J3)->GetValue()));
+		break;
+	case IDC_SLIDER_R0J4:
+		Joint_0[4].SetRotationZ(float(g_Dialog.GetSlider(IDC_SLIDER_R0J4)->GetValue()));
+		break;
+	case IDC_SLIDER_R0J5:
+		Joint_0[5].SetRotationX(float(g_Dialog.GetSlider(IDC_SLIDER_R0J5)->GetValue()));
+		break;
+	case IDC_SLIDER_R0J6:
+		Joint_0[6].SetRotationZ(float(g_Dialog.GetSlider(IDC_SLIDER_R0J6)->GetValue()));
+		break;
+
+
+	case IDC_SLIDER_R1J1:
+		Joint_1[1].SetRotationZ(float(g_Dialog2.GetSlider(IDC_SLIDER_R1J1)->GetValue()));
+		break;
+	case IDC_SLIDER_R1J2:
+		Joint_1[2].SetRotationX(float(g_Dialog2.GetSlider(IDC_SLIDER_R1J2)->GetValue()));
+		break;
+	case IDC_SLIDER_R1J3:
+		Joint_1[3].SetRotationX(float(g_Dialog2.GetSlider(IDC_SLIDER_R1J3)->GetValue()));
+		break;
+	case IDC_SLIDER_R1J4:
+		Joint_1[4].SetRotationZ(float(g_Dialog2.GetSlider(IDC_SLIDER_R1J4)->GetValue()));
+		break;
+	case IDC_SLIDER_R1J5:
+		Joint_1[5].SetRotationX(float(g_Dialog2.GetSlider(IDC_SLIDER_R1J5)->GetValue()));
+		break;
+	case IDC_SLIDER_R1J6:
+		Joint_1[6].SetRotationZ(float(g_Dialog2.GetSlider(IDC_SLIDER_R1J6)->GetValue()));
+		break;
+
+
 	}
 }
 
@@ -462,25 +538,51 @@ void InitApp()
 {
 	g_SettingsDlg.Init(&g_DialogResourceManager);
 	g_Dialog.Init(&g_DialogResourceManager);
+	g_Dialog2.Init(&g_DialogResourceManager);
 	g_Dialog.SetCallback(OnGUIEvent);
+	g_Dialog2.SetCallback(OnGUIEvent);
 
+	int SliderX = 150;
+	int SliderY = 15;
 	int ButtonX = 30;
 	int ButtonY = 30;
-	int iX0 = 0;
-	int iY0 = 0;
-	int idX = 40;
-	int idY = 40;
-
-	g_Dialog.AddButton(IDC_JOINT1_INC, L"J1[+]", iX0, iY0, ButtonX, ButtonY);
-	g_Dialog.AddButton(IDC_JOINT2_INC, L"J2[+]", iX0 += idX, iY0, ButtonX, ButtonY);
-
-	iX0 = 0;
-	iY0 += idY;
-
-	g_Dialog.AddButton(IDC_JOINT1_DEC, L"J1[-]", iX0, iY0, ButtonX, ButtonY);
-	g_Dialog.AddButton(IDC_JOINT2_DEC, L"J2[-]", iX0 += idX, iY0, ButtonX, ButtonY);
+	int jX0 = 0;
+	int jY0 = 0;
+	int jdY = 30;
 
 
+	int idX = 0;
+	int idY = 0;
+	int iX0 = 30;
+	int iY0 = 7*jdY;
+	
+
+	g_Dialog.AddSlider(IDC_SLIDER_R0J1, jX0, jY0, SliderX, SliderY, -180, 180, 0);
+	g_Dialog.AddSlider(IDC_SLIDER_R0J2, jX0, jY0 += jdY, SliderX, SliderY, -180, 180, 0);
+	g_Dialog.AddSlider(IDC_SLIDER_R0J3, jX0, jY0 += jdY, SliderX, SliderY, -180, 180, 0);
+	g_Dialog.AddSlider(IDC_SLIDER_R0J4, jX0, jY0 += jdY, SliderX, SliderY, -180, 180, 0);
+	g_Dialog.AddSlider(IDC_SLIDER_R0J5, jX0, jY0 += jdY, SliderX, SliderY, -180, 180, 0);
+	g_Dialog.AddSlider(IDC_SLIDER_R0J6, jX0, jY0 += jdY, SliderX, SliderY, -180, 180, 0);
+
+	g_Dialog.AddButton(IDC_Y_INC_R0, L"R0 Y[+]", iX0 + ButtonX + idX , iY0, ButtonX, ButtonY); //^
+	g_Dialog.AddButton(IDC_X_DEC_R0, L"R0 X[-]", iX0, iY0 + ButtonY + idY,ButtonX, ButtonY);//<
+	g_Dialog.AddButton(IDC_X_INC_R0, L"R0 X[+]", iX0 + 2*ButtonX + 2*idX, iY0+ButtonY+idY, ButtonX, ButtonY);//>
+	g_Dialog.AddButton(IDC_Y_DEC_R0, L"R0 Y[-]", iX0 + ButtonX + idX, iY0 + 2*ButtonY + 2*idY, ButtonX, ButtonY);//v
+
+	jX0 = 0;
+	jY0 = 0;
+
+	g_Dialog2.AddSlider(IDC_SLIDER_R1J1, jX0, jY0, SliderX, SliderY, -180, 180, 0);
+	g_Dialog2.AddSlider(IDC_SLIDER_R1J2, jX0, jY0 += jdY, SliderX, SliderY, -180, 180, 0);
+	g_Dialog2.AddSlider(IDC_SLIDER_R1J3, jX0, jY0 += jdY, SliderX, SliderY, -180, 180, 0);
+	g_Dialog2.AddSlider(IDC_SLIDER_R1J4, jX0, jY0 += jdY, SliderX, SliderY, -180, 180, 0);
+	g_Dialog2.AddSlider(IDC_SLIDER_R1J5, jX0, jY0 += jdY, SliderX, SliderY, -180, 180, 0);
+	g_Dialog2.AddSlider(IDC_SLIDER_R1J6, jX0, jY0 += jdY, SliderX, SliderY, -180, 180, 0);
+
+	g_Dialog2.AddButton(IDC_Y_INC_R1, L"R1 [+]", iX0 + ButtonX + idX, iY0, ButtonX, ButtonY); 
+	g_Dialog2.AddButton(IDC_X_DEC_R1, L"R1 [-]", iX0, iY0 + ButtonY + idY, ButtonX, ButtonY);
+	g_Dialog2.AddButton(IDC_X_INC_R1, L"R1 [+]", iX0 + 2 * ButtonX + 2 * idX, iY0 + ButtonY + idY, ButtonX, ButtonY);
+	g_Dialog2.AddButton(IDC_Y_DEC_R1, L"R1 [-]", iX0 + ButtonX + idX, iY0 + 2 * ButtonY + 2 * idY, ButtonX, ButtonY);
 }
 
 void DrawGrid(FXMVECTOR xAxis, FXMVECTOR yAxis, FXMVECTOR origin, size_t xdivs, size_t ydivs, GXMVECTOR color)
@@ -548,7 +650,7 @@ void InitRobotTrees()
 
 	Joint_1[0].addLeaf(Leaf_1[0]);
 	Joint_1[1].addLeaf(Leaf_1[1]);
-	Joint_1[2].addLeaf(Leaf_1[2]);
+	Joint_1[1].addLeaf(Leaf_1[2]);
 	Joint_1[2].addLeaf(Leaf_1[3]);
 	Joint_1[3].addLeaf(Leaf_1[4]);
 	Joint_1[3].addLeaf(Leaf_1[5]);
@@ -560,4 +662,22 @@ void InitRobotTrees()
 	Joint_1[5].addLeaf(Leaf_1[10]);
 	Joint_1[5].addLeaf(Leaf_1[12]);
 	Joint_1[6].addLeaf(Leaf_1[11]);
+}
+
+void SetOrigins()
+{
+	/*Joint_0[1].SetOffsetRotation(0, 0, 250, 0, 0, 0);
+	Joint_0[2].SetOffsetRotation(0, 100, 180, 0, 0, 0);
+	Joint_0[3].SetOffsetRotation(0, 0, 750, 0, 0, 0);
+	Joint_0[4].SetOffsetRotation(0, -40, 180, 0, 0, 0);
+	Joint_0[5].SetOffsetRotation(0, 0, 520,0, 0, 0);
+	Joint_0[6].SetOffsetRotation(0, 0, 95, 0, 0, 0);
+
+	Joint_1[1].SetOffsetRotation(0, 0, 300, 0, 0, 0);
+	Joint_1[2].SetOffsetRotation(0, 157, 149.5, 0, 0, 0);
+	Joint_1[3].SetOffsetRotation(0, -157, -449.5, 0, 0, 0);
+	Joint_1[4].SetOffsetRotation(0, 0, 0, 0, 0, 0);
+	Joint_1[5].SetOffsetRotation(0, 0, 267, 0, 0, 0);
+	Joint_1[6].SetOffsetRotation(0, 0, 69, 0, 0, 0);*/
+
 }

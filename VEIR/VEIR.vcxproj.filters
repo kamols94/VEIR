@@ -24,6 +24,9 @@
     <ClCompile Include="RobotEffectFactory.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="RobotMatrix.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h">
@@ -35,6 +38,9 @@
     <ClInclude Include="RobotEffectFactory.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="RobotMatrix.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="VEIR.rc">
@@ -43,6 +49,9 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="eti.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="Font.dds">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>

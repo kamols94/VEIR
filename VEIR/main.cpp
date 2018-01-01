@@ -6,13 +6,14 @@
 #include "resource.h"
 #include "RobotEffectFactory.h"
 #include "RobotComponent.h"
+#include "RobotMatrix.h"
 
-
+#include "DXUTmisc.h"
 #include "DXUT.h"
+#include "DXUTgui.h"
 #include "DXUTCamera.h"
 #include "PrimitiveBatch.h"
 #include "VertexTypes.h"
-#include "DXUTSettingsDlg.h"
 #include "CommonStates.h"
 #include "Model.h"
 
@@ -46,22 +47,48 @@ using namespace DirectX;
 #define IDC_SLIDER_R1J5			25
 #define IDC_SLIDER_R1J6			26
 
+#define IDC_IK_X_INC_R0			31
+#define IDC_IK_X_DEC_R0			32
+#define IDC_IK_Y_INC_R0			33
+#define IDC_IK_Y_DEC_R0			34
+#define IDC_IK_Z_INC_R0			35
+#define IDC_IK_Z_DEC_R0			36
+#define IDC_IK_SLIDER_X_R0		37
+#define IDC_IK_SLIDER_Y_R0		38
+#define IDC_IK_SLIDER_Z_R0		39
+
+#define IDC_IK_X_INC_R1			41
+#define IDC_IK_X_DEC_R1			42
+#define IDC_IK_Y_INC_R1			43
+#define IDC_IK_Y_DEC_R1			44
+#define IDC_IK_Z_INC_R1			45
+#define IDC_IK_Z_DEC_R1			46
+#define IDC_IK_SLIDER_X_R1		47
+#define IDC_IK_SLIDER_Y_R1		48
+#define IDC_IK_SLIDER_Z_R1		49
+
+
 //--------------------------------------------------------------------------------------
 // Global variables
 //--------------------------------------------------------------------------------------
+const int JOINTS_1_COUNT = 7;
+const int JOINTS_2_COUNT = 7;
+
 RobotLeaf Leaf_0[7];
-RobotComposite Joint_0[7];
+RobotComposite Joint_0[JOINTS_1_COUNT];
 
 RobotLeaf Leaf_1[14];
-RobotComposite Joint_1[7];
+RobotComposite Joint_1[JOINTS_2_COUNT];
 
 
 CModelViewerCamera										g_Camera;
 
 CDXUTDialogResourceManager								g_DialogResourceManager;
-CD3DSettingsDlg											g_SettingsDlg;
 CDXUTDialog												g_Dialog;
 CDXUTDialog												g_Dialog2;
+CDXUTDialog												g_DialogIK0;
+CDXUTDialog												g_DialogIK1;
+CDXUTTextHelper*										g_pTxtHelper = nullptr;
 
 ID3D11InputLayout*										g_pBatchInputLayout = nullptr;
 
@@ -70,14 +97,17 @@ std::unique_ptr<PrimitiveBatch<VertexPositionColor>>    g_Batch;
 std::unique_ptr<RobotEffectFactory>						g_FXFactory;
 std::unique_ptr<CommonStates>							g_States;
 std::unique_ptr<Model>                                  g_Model;
-float g_a = 0.0f;
-float g_b = 0.0f;
+
+std::wstring											g_WstringToPrint;
+wchar_t													g_WstringBuffer[512];
+RobotMatrix												g_MatrixToDisplay;
 
 
 
 //--------------------------------------------------------------------------------------
 // Forward declarations 
 //--------------------------------------------------------------------------------------
+void RenderText();
 void InitRobotTrees();
 void InitApp();
 void SetOrigins();
@@ -113,7 +143,8 @@ HRESULT CALLBACK OnD3D11CreateDevice(ID3D11Device* pd3dDevice, const DXGI_SURFAC
 
 	auto pd3dImmediateContext = DXUTGetD3D11DeviceContext();
 	V_RETURN(g_DialogResourceManager.OnD3D11CreateDevice(pd3dDevice, pd3dImmediateContext));
-	V_RETURN(g_SettingsDlg.OnD3D11CreateDevice(pd3dDevice));
+
+	g_pTxtHelper = new CDXUTTextHelper(pd3dDevice,pd3dImmediateContext,&g_DialogResourceManager,15);
 
 	// Create other render resources here
 	g_States.reset(new CommonStates(pd3dDevice));
@@ -225,7 +256,6 @@ HRESULT CALLBACK OnD3D11ResizedSwapChain(ID3D11Device* pd3dDevice, IDXGISwapChai
 {
 	HRESULT hr;
 	V_RETURN(g_DialogResourceManager.OnD3D11ResizedSwapChain(pd3dDevice, pBackBufferSurfaceDesc));
-	V_RETURN(g_SettingsDlg.OnD3D11ResizedSwapChain(pd3dDevice, pBackBufferSurfaceDesc));
 
 	// Setup the camera's projection parameters
 	float fAspectRatio = pBackBufferSurfaceDesc->Width / (FLOAT)pBackBufferSurfaceDesc->Height;
@@ -238,6 +268,12 @@ HRESULT CALLBACK OnD3D11ResizedSwapChain(ID3D11Device* pd3dDevice, IDXGISwapChai
 
 	g_Dialog2.SetLocation(pBackBufferSurfaceDesc->Width-165, 15);
 	g_Dialog2.SetSize(150, 300);
+
+	g_DialogIK0.SetLocation(15, 315);
+	g_DialogIK0.SetSize(150, 150);
+
+	g_DialogIK1.SetLocation(pBackBufferSurfaceDesc->Width - 165, 315);
+	g_DialogIK1.SetSize(150, 150);
 
 	return S_OK;
 }
@@ -294,9 +330,12 @@ void CALLBACK OnD3D11FrameRender(ID3D11Device* pd3dDevice, ID3D11DeviceContext* 
 	Joint_1[0].Render(pd3dImmediateContext, *g_States, mView, mProj);
 	
 	// Render GUI
-	DXUT_BeginPerfEvent(DXUT_PERFEVENTCOLOR, L"BUTTONS");
+	DXUT_BeginPerfEvent(DXUT_PERFEVENTCOLOR, L"HUD / Stats");
 	g_Dialog.OnRender(fElapsedTime);
 	g_Dialog2.OnRender(fElapsedTime);
+	g_DialogIK0.OnRender(fElapsedTime);
+	g_DialogIK1.OnRender(fElapsedTime);
+	RenderText();
 	DXUT_EndPerfEvent();
 }
 
@@ -316,9 +355,10 @@ void CALLBACK OnD3D11ReleasingSwapChain(void* pUserContext)
 void CALLBACK OnD3D11DestroyDevice(void* pUserContext)
 {
 	g_DialogResourceManager.OnD3D11DestroyDevice();
-	g_SettingsDlg.OnD3D11DestroyDevice();
 
 	DXUTGetGlobalResourceCache().OnDestroyDevice();
+
+	SAFE_DELETE(g_pTxtHelper);
 
 	g_States.reset();
 	g_BatchEffect.reset();
@@ -364,19 +404,20 @@ LRESULT CALLBACK MsgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
 	if (*pbNoFurtherProcessing)
 		return 0;
 
-	// Pass messages to settings dialog if its active
-	if (g_SettingsDlg.IsActive())
-	{
-		g_SettingsDlg.MsgProc(hWnd, uMsg, wParam, lParam);
-		return 0;
-	}
-
 	// Give the dialogs a chance to handle the message first
 	*pbNoFurtherProcessing = g_Dialog.MsgProc(hWnd, uMsg, wParam, lParam);
 	if (*pbNoFurtherProcessing)
 		return 0;
 
 	*pbNoFurtherProcessing = g_Dialog2.MsgProc(hWnd, uMsg, wParam, lParam);
+	if (*pbNoFurtherProcessing)
+		return 0;
+
+	*pbNoFurtherProcessing = g_DialogIK0.MsgProc(hWnd, uMsg, wParam, lParam);
+	if (*pbNoFurtherProcessing)
+		return 0;
+
+	*pbNoFurtherProcessing = g_DialogIK1.MsgProc(hWnd, uMsg, wParam, lParam);
 	if (*pbNoFurtherProcessing)
 		return 0;
 
@@ -420,7 +461,7 @@ void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, vo
 	switch (nControlID)
 	{
 	case IDC_X_INC_R0:
-		Joint_0[0].SetX(Joint_0[0].GetTranslationX()+250.f);
+		Joint_0[0].SetTranslationX(Joint_0[0].GetTranslationX()+250.f);
 		break;
 	case IDC_X_DEC_R0:
 		Joint_0[0].SetTranslationX(Joint_0[0].GetTranslationX() - 250.f);
@@ -431,6 +472,7 @@ void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, vo
 	case IDC_Y_DEC_R0:
 		Joint_0[0].SetTranslationY(Joint_0[0].GetTranslationY() - 250.f);
 		break;
+
 	case IDC_X_INC_R1:
 		Joint_1[0].SetTranslationX(Joint_1[0].GetTranslationX() + 250.f);
 		break;
@@ -449,16 +491,16 @@ void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, vo
 		Joint_0[1].SetRotationZ(float(g_Dialog.GetSlider(IDC_SLIDER_R0J1)->GetValue()));
 		break;
 	case IDC_SLIDER_R0J2:
-		Joint_0[2].SetRotationX(float(g_Dialog.GetSlider(IDC_SLIDER_R0J2)->GetValue()));
+		Joint_0[2].SetRotationZ(float(g_Dialog.GetSlider(IDC_SLIDER_R0J2)->GetValue()));
 		break;
 	case IDC_SLIDER_R0J3:
-		Joint_0[3].SetRotationX(float(g_Dialog.GetSlider(IDC_SLIDER_R0J3)->GetValue()));
+		Joint_0[3].SetRotationZ(float(g_Dialog.GetSlider(IDC_SLIDER_R0J3)->GetValue()));
 		break;
 	case IDC_SLIDER_R0J4:
 		Joint_0[4].SetRotationZ(float(g_Dialog.GetSlider(IDC_SLIDER_R0J4)->GetValue()));
 		break;
 	case IDC_SLIDER_R0J5:
-		Joint_0[5].SetRotationX(float(g_Dialog.GetSlider(IDC_SLIDER_R0J5)->GetValue()));
+		Joint_0[5].SetRotationZ(float(g_Dialog.GetSlider(IDC_SLIDER_R0J5)->GetValue()));
 		break;
 	case IDC_SLIDER_R0J6:
 		Joint_0[6].SetRotationZ(float(g_Dialog.GetSlider(IDC_SLIDER_R0J6)->GetValue()));
@@ -469,16 +511,16 @@ void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, vo
 		Joint_1[1].SetRotationZ(float(g_Dialog2.GetSlider(IDC_SLIDER_R1J1)->GetValue()));
 		break;
 	case IDC_SLIDER_R1J2:
-		Joint_1[2].SetRotationX(float(g_Dialog2.GetSlider(IDC_SLIDER_R1J2)->GetValue()));
+		Joint_1[2].SetRotationZ(float(g_Dialog2.GetSlider(IDC_SLIDER_R1J2)->GetValue()));
 		break;
 	case IDC_SLIDER_R1J3:
-		Joint_1[3].SetRotationX(float(g_Dialog2.GetSlider(IDC_SLIDER_R1J3)->GetValue()));
+		Joint_1[3].SetRotationZ(float(g_Dialog2.GetSlider(IDC_SLIDER_R1J3)->GetValue()));
 		break;
 	case IDC_SLIDER_R1J4:
 		Joint_1[4].SetRotationZ(float(g_Dialog2.GetSlider(IDC_SLIDER_R1J4)->GetValue()));
 		break;
 	case IDC_SLIDER_R1J5:
-		Joint_1[5].SetRotationX(float(g_Dialog2.GetSlider(IDC_SLIDER_R1J5)->GetValue()));
+		Joint_1[5].SetRotationZ(float(g_Dialog2.GetSlider(IDC_SLIDER_R1J5)->GetValue()));
 		break;
 	case IDC_SLIDER_R1J6:
 		Joint_1[6].SetRotationZ(float(g_Dialog2.GetSlider(IDC_SLIDER_R1J6)->GetValue()));
@@ -536,11 +578,14 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 
 void InitApp()
 {
-	g_SettingsDlg.Init(&g_DialogResourceManager);
 	g_Dialog.Init(&g_DialogResourceManager);
 	g_Dialog2.Init(&g_DialogResourceManager);
+	g_DialogIK0.Init(&g_DialogResourceManager);
+	g_DialogIK1.Init(&g_DialogResourceManager);
 	g_Dialog.SetCallback(OnGUIEvent);
 	g_Dialog2.SetCallback(OnGUIEvent);
+	g_DialogIK0.SetCallback(OnGUIEvent);
+	g_DialogIK1.SetCallback(OnGUIEvent);
 
 	int SliderX = 150;
 	int SliderY = 15;
@@ -579,10 +624,41 @@ void InitApp()
 	g_Dialog2.AddSlider(IDC_SLIDER_R1J5, jX0, jY0 += jdY, SliderX, SliderY, -180, 180, 0);
 	g_Dialog2.AddSlider(IDC_SLIDER_R1J6, jX0, jY0 += jdY, SliderX, SliderY, -180, 180, 0);
 
-	g_Dialog2.AddButton(IDC_Y_INC_R1, L"R1 [+]", iX0 + ButtonX + idX, iY0, ButtonX, ButtonY); 
-	g_Dialog2.AddButton(IDC_X_DEC_R1, L"R1 [-]", iX0, iY0 + ButtonY + idY, ButtonX, ButtonY);
-	g_Dialog2.AddButton(IDC_X_INC_R1, L"R1 [+]", iX0 + 2 * ButtonX + 2 * idX, iY0 + ButtonY + idY, ButtonX, ButtonY);
-	g_Dialog2.AddButton(IDC_Y_DEC_R1, L"R1 [-]", iX0 + ButtonX + idX, iY0 + 2 * ButtonY + 2 * idY, ButtonX, ButtonY);
+	g_Dialog2.AddButton(IDC_Y_INC_R1, L"R1 Y[+]", iX0 + ButtonX + idX, iY0, ButtonX, ButtonY); 
+	g_Dialog2.AddButton(IDC_X_DEC_R1, L"R1 X[-]", iX0, iY0 + ButtonY + idY, ButtonX, ButtonY);
+	g_Dialog2.AddButton(IDC_X_INC_R1, L"R1 X[+]", iX0 + 2 * ButtonX + 2 * idX, iY0 + ButtonY + idY, ButtonX, ButtonY);
+	g_Dialog2.AddButton(IDC_Y_DEC_R1, L"R1 Y[-]", iX0 + ButtonX + idX, iY0 + 2 * ButtonY + 2 * idY, ButtonX, ButtonY);
+
+	//INVERSE KINEMATICS DIALOGS
+	iY0 = ButtonY;
+	g_DialogIK0.AddButton(IDC_IK_X_INC_R0, L"X[+]", iX0, iY0, ButtonX, ButtonY);
+	g_DialogIK0.AddButton(IDC_IK_Y_INC_R0, L"Y[+]", iX0 + 1 * ButtonX + 1 * idX, iY0, ButtonX, ButtonY);
+	g_DialogIK0.AddButton(IDC_IK_Z_INC_R0, L"Z[+]", iX0 + 2 * ButtonX + 2 * idX, iY0, ButtonX, ButtonY);
+	g_DialogIK0.AddButton(IDC_IK_X_DEC_R0, L"X[-]", iX0, iY0 + ButtonY + idY, ButtonX, ButtonY);
+	g_DialogIK0.AddButton(IDC_IK_Y_DEC_R0, L"Y[-]", iX0 + 1 * ButtonX + 1 * idX, iY0 + ButtonY + idY, ButtonX, ButtonY);
+	g_DialogIK0.AddButton(IDC_IK_Z_DEC_R0, L"Z[-]", iX0 + 2 * ButtonX + 2 * idX, iY0 + ButtonY + idY, ButtonX, ButtonY);
+	jX0 = 0;
+	jY0 = 4*ButtonY+4*idY;
+	g_DialogIK0.AddSlider(IDC_IK_SLIDER_X_R0, jX0, jY0, SliderX, SliderY, -180, 180, 0);
+	g_DialogIK0.AddSlider(IDC_IK_SLIDER_Y_R0, jX0, jY0 += jdY, SliderX, SliderY, -180, 180, 0);
+	g_DialogIK0.AddSlider(IDC_IK_SLIDER_Z_R0, jX0, jY0 += jdY, SliderX, SliderY, -180, 180, 0);
+
+	g_DialogIK1.AddButton(IDC_IK_X_INC_R1, L"X[+]", iX0, iY0, ButtonX, ButtonY);
+	g_DialogIK1.AddButton(IDC_IK_Y_INC_R1, L"Y[+]", iX0 + 1 * ButtonX + 1 * idX, iY0, ButtonX, ButtonY);
+	g_DialogIK1.AddButton(IDC_IK_Z_INC_R1, L"Z[+]", iX0 + 2 * ButtonX + 2 * idX, iY0, ButtonX, ButtonY);
+	g_DialogIK1.AddButton(IDC_IK_X_DEC_R1, L"X[-]", iX0, iY0 + ButtonY + idY, ButtonX, ButtonY);
+	g_DialogIK1.AddButton(IDC_IK_Y_DEC_R1, L"Y[-]", iX0 + 1 * ButtonX + 1 * idX, iY0 + ButtonY + idY, ButtonX, ButtonY);
+	g_DialogIK1.AddButton(IDC_IK_Z_DEC_R1, L"Z[-]", iX0 + 2 * ButtonX + 2 * idX, iY0 + ButtonY + idY, ButtonX, ButtonY);
+	jX0 = 0;
+	jY0 = 4 * ButtonY + 4 * idY;
+	g_DialogIK1.AddSlider(IDC_IK_SLIDER_X_R1, jX0, jY0, SliderX, SliderY, -180, 180, 0);
+	g_DialogIK1.AddSlider(IDC_IK_SLIDER_Y_R1, jX0, jY0 += jdY, SliderX, SliderY, -180, 180, 0);
+	g_DialogIK1.AddSlider(IDC_IK_SLIDER_Z_R1, jX0, jY0 += jdY, SliderX, SliderY, -180, 180, 0);
+
+
+	
+
+
 }
 
 void DrawGrid(FXMVECTOR xAxis, FXMVECTOR yAxis, FXMVECTOR origin, size_t xdivs, size_t ydivs, GXMVECTOR color)
@@ -655,7 +731,7 @@ void InitRobotTrees()
 	Joint_1[3].addLeaf(Leaf_1[4]);
 	Joint_1[3].addLeaf(Leaf_1[5]);
 	Joint_1[3].addLeaf(Leaf_1[6]);
-	Joint_1[3].addLeaf(Leaf_1[13]);
+	Joint_1[4].addLeaf(Leaf_1[13]);
 	Joint_1[4].addLeaf(Leaf_1[7]);
 	Joint_1[4].addLeaf(Leaf_1[8]);
 	Joint_1[4].addLeaf(Leaf_1[9]);
@@ -666,18 +742,140 @@ void InitRobotTrees()
 
 void SetOrigins()
 {
-	/*Joint_0[1].SetOffsetRotation(0, 0, 250, 0, 0, 0);
-	Joint_0[2].SetOffsetRotation(0, 100, 180, 0, 0, 0);
-	Joint_0[3].SetOffsetRotation(0, 0, 750, 0, 0, 0);
-	Joint_0[4].SetOffsetRotation(0, -40, 180, 0, 0, 0);
-	Joint_0[5].SetOffsetRotation(0, 0, 520,0, 0, 0);
-	Joint_0[6].SetOffsetRotation(0, 0, 95, 0, 0, 0);
+	Joint_0[0].SetRotationX(0);
+	Joint_0[0].SetRotationY(0);
+	Joint_0[0].SetRotationZ(0);
 
-	Joint_1[1].SetOffsetRotation(0, 0, 300, 0, 0, 0);
-	Joint_1[2].SetOffsetRotation(0, 157, 149.5, 0, 0, 0);
-	Joint_1[3].SetOffsetRotation(0, -157, -449.5, 0, 0, 0);
-	Joint_1[4].SetOffsetRotation(0, 0, 0, 0, 0, 0);
-	Joint_1[5].SetOffsetRotation(0, 0, 267, 0, 0, 0);
-	Joint_1[6].SetOffsetRotation(0, 0, 69, 0, 0, 0);*/
+	Joint_0[1].SetTxTzRxRz(100, 430, 90, 0);
+	Joint_0[2].SetTxTzRxRz(750, 0, 0, 0);
+	Joint_0[3].SetTxTzRxRz(40, 0, 90, 0);
+	Joint_0[4].SetTxTzRxRz(0, 700,-90, 0);
+	Joint_0[5].SetTxTzRxRz(0, 0, 90, 0);
+	Joint_0[6].SetTxTzRxRz(0, 100, 0, 0);
 
+	Joint_1[1].SetTxTzRxRz(150, 449.5, 90, 0);
+	Joint_1[2].SetTxTzRxRz(560.5, 0, 0, 0);
+	Joint_1[3].SetTxTzRxRz(80, 0, 90, 0);
+	Joint_1[4].SetTxTzRxRz(0, 669.5, -90, 0);
+	Joint_1[5].SetTxTzRxRz(0, 0, 90, 0);
+	Joint_1[6].SetTxTzRxRz(0, 97.5, 0, 0);
+}
+
+void RenderText()
+{
+	POINT dialog_point;
+
+	g_pTxtHelper->Begin();
+	g_pTxtHelper->SetForegroundColor(Colors::Yellow);
+
+	//#1 - ANGLES R1
+	g_Dialog.GetLocation(dialog_point);
+	g_pTxtHelper->SetInsertionPos(dialog_point.x, dialog_point.y+10);
+	for (int i = 1; i < JOINTS_1_COUNT; i++)
+	{
+		g_WstringToPrint.clear();
+		swprintf_s(g_WstringBuffer, L"THETA(%u) = ", i);
+		g_WstringToPrint = g_WstringBuffer;
+		g_WstringToPrint.append(std::to_wstring(Joint_0[i].GetRotationZ()));
+		g_pTxtHelper->DrawTextLine(g_WstringToPrint.c_str());
+		g_pTxtHelper->DrawTextLine(L"");
+	}
+
+	//#2 - ANGLES R2
+	g_Dialog2.GetLocation(dialog_point);
+	g_pTxtHelper->SetInsertionPos(dialog_point.x, dialog_point.y+10);
+	for (int i = 1; i < JOINTS_2_COUNT; i++)
+	{
+		g_WstringToPrint.clear();
+		swprintf_s(g_WstringBuffer, L"THETA(%u) = ", i);
+		g_WstringToPrint = g_WstringBuffer;
+		g_WstringToPrint.append(std::to_wstring(Joint_1[i].GetRotationZ()));
+		g_pTxtHelper->DrawTextLine(g_WstringToPrint.c_str());
+		g_pTxtHelper->DrawTextLine(L"");
+	}
+
+	//#3 POSITIONS R1
+	g_Dialog.GetLocation(dialog_point);
+	g_pTxtHelper->SetInsertionPos(dialog_point.x + 165, dialog_point.y);
+	for (int i = 0; i < JOINTS_1_COUNT; i++)
+	{
+		g_MatrixToDisplay.LoadXMMATRIX(Joint_0[i].GetCurrentOrigin());
+		g_WstringToPrint.clear();
+		swprintf_s(g_WstringBuffer, L"P0[%u]=(", i);
+		g_WstringToPrint = g_WstringBuffer;
+		g_WstringToPrint.append(std::to_wstring(g_MatrixToDisplay.px));
+		g_WstringToPrint.append(L", ");
+		g_WstringToPrint.append(std::to_wstring(g_MatrixToDisplay.py));
+		g_WstringToPrint.append(L", ");
+		g_WstringToPrint.append(std::to_wstring(g_MatrixToDisplay.pz));
+		g_WstringToPrint.append(L")");
+		g_pTxtHelper->DrawTextLine(g_WstringToPrint.c_str());
+	}
+	g_pTxtHelper->DrawTextLine(L"");
+	//#4 POSITIONS R2
+	for (int i = 0; i < JOINTS_2_COUNT; i++)
+	{
+		g_MatrixToDisplay.LoadXMMATRIX(Joint_1[i].GetCurrentOrigin());
+		g_WstringToPrint.clear();
+		swprintf_s(g_WstringBuffer, L"P1[%u]=(", i);
+		g_WstringToPrint = g_WstringBuffer;
+		g_WstringToPrint.append(std::to_wstring(g_MatrixToDisplay.px));
+		g_WstringToPrint.append(L", ");
+		g_WstringToPrint.append(std::to_wstring(g_MatrixToDisplay.py));
+		g_WstringToPrint.append(L", ");
+		g_WstringToPrint.append(std::to_wstring(g_MatrixToDisplay.pz));
+		g_WstringToPrint.append(L")");
+		g_pTxtHelper->DrawTextLine(g_WstringToPrint.c_str());
+	}
+	/*
+	////////////////////MACIERZ:POCZATEK
+
+	g_Dialog.GetLocation(dialog_point);
+	g_pTxtHelper->SetInsertionPos(dialog_point.x+300, dialog_point.y + 15);
+
+	g_MatrixToDisplay.LoadXMMATRIX(Joint_0[1].GetCurrentOrigin());
+	g_WstringToPrint.clear();
+	g_WstringToPrint.append(std::to_wstring(g_MatrixToDisplay.r11));
+	g_WstringToPrint.append(L", ");
+	g_WstringToPrint.append(std::to_wstring(g_MatrixToDisplay.r12));
+	g_WstringToPrint.append(L", ");
+	g_WstringToPrint.append(std::to_wstring(g_MatrixToDisplay.r13));
+	g_WstringToPrint.append(L", ");
+	g_WstringToPrint.append(std::to_wstring(g_MatrixToDisplay.px));
+	g_pTxtHelper->DrawTextLine(g_WstringToPrint.c_str());
+
+	g_WstringToPrint.clear();
+	g_WstringToPrint.append(std::to_wstring(g_MatrixToDisplay.r21));
+	g_WstringToPrint.append(L", ");
+	g_WstringToPrint.append(std::to_wstring(g_MatrixToDisplay.r22));
+	g_WstringToPrint.append(L", ");
+	g_WstringToPrint.append(std::to_wstring(g_MatrixToDisplay.r23));
+	g_WstringToPrint.append(L", ");
+	g_WstringToPrint.append(std::to_wstring(g_MatrixToDisplay.py));
+	g_pTxtHelper->DrawTextLine(g_WstringToPrint.c_str());
+
+	g_WstringToPrint.clear();
+	g_WstringToPrint.append(std::to_wstring(g_MatrixToDisplay.r31));
+	g_WstringToPrint.append(L", ");
+	g_WstringToPrint.append(std::to_wstring(g_MatrixToDisplay.r32));
+	g_WstringToPrint.append(L", ");
+	g_WstringToPrint.append(std::to_wstring(g_MatrixToDisplay.r33));
+	g_WstringToPrint.append(L", ");
+	g_WstringToPrint.append(std::to_wstring(g_MatrixToDisplay.pz));
+	g_pTxtHelper->DrawTextLine(g_WstringToPrint.c_str());
+
+	g_WstringToPrint.clear();
+	g_WstringToPrint.append(std::to_wstring(g_MatrixToDisplay.r314));
+	g_WstringToPrint.append(L", ");
+	g_WstringToPrint.append(std::to_wstring(g_MatrixToDisplay.r324));
+	g_WstringToPrint.append(L", ");
+	g_WstringToPrint.append(std::to_wstring(g_MatrixToDisplay.r334));
+	g_WstringToPrint.append(L", ");
+	g_WstringToPrint.append(std::to_wstring(g_MatrixToDisplay.pz4));
+	g_pTxtHelper->DrawTextLine(g_WstringToPrint.c_str());
+
+	////////////////////MACIERZ:KONIEC
+	*/
+
+	g_pTxtHelper->End();
 }

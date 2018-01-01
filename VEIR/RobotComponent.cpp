@@ -54,11 +54,11 @@ void RobotComposite::Render(ID3D11DeviceContext* pd3dImmediateContext, const Com
 
 void RobotComposite::Transform()
 {
-	XMMATRIX TRANSLATION_X = XMMatrixTranslation(this->transX,0,0);
-	XMMATRIX TRANSLATION_Z = XMMatrixTranslation(0, 0, this->transZ);
+	XMMATRIX TRANSLATION = XMMatrixTranslation(this->transX, this->transY, this->transZ);
+	//XMMATRIX TRANSLATION_Z = XMMatrixTranslation(0, 0, this->transZ);
 	XMMATRIX ROTATION_X = XMMatrixRotationX(this->rotX);
 	XMMATRIX ROTATION_Z = XMMatrixRotationZ(this->rotZ);
-	XMMATRIX TRANSFORMATION = XMMatrixMultiply(XMMatrixMultiply(ROTATION_Z, TRANSLATION_Z), XMMatrixMultiply(TRANSLATION_X, ROTATION_X));
+	XMMATRIX TRANSFORMATION = XMMatrixMultiply(XMMatrixMultiply(ROTATION_X, TRANSLATION), ROTATION_Z);
 	this->CURRENT_ORIGIN = XMMatrixMultiply(TRANSFORMATION, this->PARENT_ORIGIN);
 
 
@@ -90,11 +90,17 @@ void RobotComposite::SetTxTzRxRz(float translationX, float translationZ, float r
 void RobotComposite::SetTranslationX(float translationX)
 {this->transX = translationX;}
 
+void RobotComposite::SetTranslationY(float translationY)
+{this->transY = translationY;}
+
 void RobotComposite::SetTranslationZ(float translationZ)
 {this->transZ = translationZ;}
 
 void RobotComposite::SetRotationX(float rotationX)
 {this->rotX = rotationX*XM_PI / 180;}
+
+void RobotComposite::SetRotationY(float rotationY)
+{this->rotY = rotationY*XM_PI / 180;}
 
 void RobotComposite::SetRotationZ(float rotationZ)
 {this->rotZ = rotationZ*XM_PI / 180;}
@@ -102,11 +108,20 @@ void RobotComposite::SetRotationZ(float rotationZ)
 float RobotComposite::GetTranslationX()
 {return this->transX;}
 
+float RobotComposite::GetTranslationY()
+{return this->transY;}
+
 float RobotComposite::GeTranslationZ()
 {return this->transZ;}
 
 float RobotComposite::GetRotationX()
 {return this->rotX;}
 
+float RobotComposite::GetRotationY()
+{return this->rotY;}
+
 float RobotComposite::GetRotationZ()
 {return this->rotZ;}
+
+XMMATRIX RobotComposite::GetCurrentOrigin()
+{return this->CURRENT_ORIGIN;}

@@ -37,23 +37,32 @@ class RobotComposite : public RobotComponent
 {
 protected:
 	float transX;
+	float transY;
 	float transZ;
 	float rotX;
+	float rotY;
 	float rotZ;
+
 	XMMATRIX CURRENT_ORIGIN;
 	std::vector< RobotComponent * > ptr_composite;
 
 public:
 	void SetTxTzRxRz(float tx, float tz, float rx, float rz);
 	void SetTranslationX(float tx);
+	void SetTranslationY(float tx);
 	void SetTranslationZ(float tz);
 	void SetRotationX(float rx);
+	void SetRotationY(float rx);
 	void SetRotationZ(float rz);
 
 	float GetTranslationX();
+	float GetTranslationY();
 	float GeTranslationZ();
 	float GetRotationX();
+	float GetRotationY();
 	float GetRotationZ();
+
+	XMMATRIX GetCurrentOrigin();
 
 
 	virtual void Render(ID3D11DeviceContext* pd3dImmediateContext, const CommonStates &states, XMMATRIX view, XMMATRIX proj) override;
